@@ -11,7 +11,6 @@ class DriveService:
         self.creds = None
         
         # Load credentials from environment variable (JSON string) for GitHub Actions
-        # Or fallback to a local credentials.json file
         creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
         if creds_json:
             creds_dict = json.loads(creds_json)
@@ -30,13 +29,12 @@ class DriveService:
 
     def get_one_image(self, folder_id):
         """Fetches exactly one image from the specified Google Drive folder."""
-        # Search for image files in the specific folder
         query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
         results = self.service.files().list(
             q=query,
-            pageSize=1, # Get only one file
+            pageSize=1,
             fields="nextPageToken, files(id, name, mimeType)",
-            orderBy="createdTime asc" # Oldest first, for example
+            orderBy="createdTime asc"
         ).execute()
         
         items = results.get('files', [])
@@ -65,11 +63,9 @@ class DriveService:
         if not destination_folder_id:
             return False
             
-        # Retrieve the existing parents to remove
         file = self.service.files().get(fileId=file_id, fields='parents').execute()
         previous_parents = ",".join(file.get('parents', []))
         
-        # Move the file to the new folder
         self.service.files().update(
             fileId=file_id,
             addParents=destination_folder_id,
