@@ -16,45 +16,38 @@ class DiscordService:
             return
             
         status = report_data.get('status', 'Unknown')
-        color = 3066993 if status == 'Success' else 15158332 # Green for Success, Red for Error
+        is_success = (status == 'Success')
         
-        # Build the embed fields
-        fields = [
-            {"name": "Status", "value": status, "inline": True},
-            {"name": "Upload Time", "value": report_data.get('upload_time', 'N/A'), "inline": True},
-            {"name": "Photo File Name", "value": report_data.get('file_name', 'N/A'), "inline": False}
-        ]
+        file_name = report_data.get('file_name', 'N/A')
+        title = report_data.get('title', 'N/A')
+        caption = report_data.get('caption', 'N/A')
+        hashtags = report_data.get('hashtags', 'N/A')
+        public_url = report_data.get('public_url', 'N/A')
         
-        if status == 'Success':
-            fields.extend([
-                {"name": "Facebook Public Post URL", "value": f"[View Post]({report_data.get('public_url', '#')})", "inline": False},
-                {"name": "Generated SEO Title", "value": report_data.get('title', 'N/A'), "inline": False},
-                {"name": "Generated Caption", "value": report_data.get('caption', 'N/A'), "inline": False},
-                {"name": "Generated Hashtags", "value": report_data.get('hashtags', 'N/A'), "inline": False}
-            ])
+        github_repository = os.environ.get('GITHUB_REPOSITORY', 'Vikram-Bosak/fifa-image-post')
+        github_run_id = os.environ.get('GITHUB_RUN_ID', '')
+        repo_url = f"https://github.com/{github_repository}"
+        run_url = f"{repo_url}/actions/runs/{github_run_id}" if github_run_id else repo_url
+        
+        # Build the message content based on the template
+        message_content = f"✅ Pipeline Run Completed\n\n"
+        message_content += f"🎬 Image Name:\n{title}\n\n"
+        
+        message_content += f"📤 Facebook Upload Status: {status}\n\n"
+        
+        if is_success:
+            message_content += f"🏷️ SEO Title:\n{title}\n\n"
+            message_content += f"📝 Description:\n{caption}\n\n{hashtags}\n\n"
+            message_content += f"Original File: {file_name}\n\n"
+            message_content += f"🔗 Facebook Post URL:\n{public_url}\n\n"
         else:
-            fields.append({
-                "name": "Error Details", 
-                "value": str(report_data.get('error', 'No error details provided.')), 
-                "inline": False
-            })
+            message_content += f"❌ Error Details:\n{report_data.get('error', 'Unknown Error')}\n\n"
             
-        # Add GitHub Actions Run URL if available
-        github_run_id = os.environ.get('GITHUB_RUN_ID')
-        github_repository = os.environ.get('GITHUB_REPOSITORY')
-        if github_run_id and github_repository:
-            run_url = f"https://github.com/{github_repository}/actions/runs/{github_run_id}"
-            fields.append({"name": "GitHub Actions Run URL", "value": f"[View Logs]({run_url})", "inline": False})
-            
-        embed = {
-            "title": "📸 Facebook Auto-Poster Report",
-            "color": color,
-            "fields": fields,
-            "footer": {"text": "Automated Posting System"}
-        }
+        message_content += f"📦 GitHub Repository:\n{repo_url}\n\n"
+        message_content += f"📄 Workflow Run:\n{run_url}"
         
         payload = {
-            "embeds": [embed]
+            "content": message_content
         }
         
         try:
