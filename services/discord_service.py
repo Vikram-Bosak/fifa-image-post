@@ -37,12 +37,16 @@ class DiscordService:
         
         message_content += f"📤 Facebook Upload Status: {status}\n\n"
         
-        if is_success:
+        if title != 'N/A':
             message_content += f"🏷️ SEO Title:\n{title}\n\n"
             message_content += f"📝 Description:\n{caption}\n\n{hashtags}\n\n"
-            message_content += f"Original File: {file_name}\n\n"
+            
+        message_content += f"Original File: {file_name}\n\n"
+        
+        if public_url != 'N/A':
             message_content += f"🔗 Facebook Photo Post URL:\n{public_url}\n\n"
-        else:
+            
+        if not is_success:
             message_content += f"❌ Error Details:\n{report_data.get('error', 'Unknown Error')}\n\n"
             
         message_content += f"📦 GitHub Repository:\n{repo_url}\n\n"

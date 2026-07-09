@@ -66,16 +66,20 @@ class DriveService:
         if not destination_folder_id:
             return False
             
-        file = self.service.files().get(fileId=file_id, fields='parents').execute()
-        previous_parents = ",".join(file.get('parents', []))
-        
-        self.service.files().update(
-            fileId=file_id,
-            addParents=destination_folder_id,
-            removeParents=previous_parents,
-            fields='id, parents'
-        ).execute()
-        return True
+        try:
+            file = self.service.files().get(fileId=file_id, fields='parents').execute()
+            previous_parents = ",".join(file.get('parents', []))
+            
+            self.service.files().update(
+                fileId=file_id,
+                addParents=destination_folder_id,
+                removeParents=previous_parents,
+                fields='id, parents'
+            ).execute()
+            return True
+        except Exception as e:
+            print(f"Warning: Failed to move file to 'Uploaded' folder: {e}")
+            return False
 
     def read_state(self, folder_id):
         """Reads the state.json file from the specified Drive folder."""
@@ -105,11 +109,14 @@ class DriveService:
         file_metadata = {'name': 'state.json', 'mimeType': 'application/json'}
         media = MediaIoBaseUpload(io.BytesIO(json.dumps(state_data).encode('utf-8')), mimetype='application/json', resumable=True)
         
-        if not items:
-            # Create new
-            file_metadata['parents'] = [folder_id]
-            self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        else:
-            # Update existing
-            file_id = items[0]['id']
-            self.service.files().update(fileId=file_id, media_body=media).execute()
+        try:
+            if not items:
+                # Create new
+                file_metadata['parents'] = [folder_id]
+                self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+            else:
+                # Update existing
+                file_id = items[0]['id']
+                self.service.files().update(fileId=file_id, media_body=media).execute()
+        except Exception as e:
+            print(f"Warning: Failed to write state.json (Service Account Quota issue?): {e}")
