@@ -1,16 +1,16 @@
 import os
 import io
 import json
+import random
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 class DriveService:
     def __init__(self):
         self.scopes = ['https://www.googleapis.com/auth/drive']
         self.creds = None
         
-        # Load credentials from environment variable (JSON string) for GitHub Actions
         creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
         if creds_json:
             creds_dict = json.loads(creds_json)
@@ -27,20 +27,23 @@ class DriveService:
 
         self.service = build('drive', 'v3', credentials=self.creds)
 
-    def get_one_image(self, folder_id):
-        """Fetches exactly one image from the specified Google Drive folder."""
+    def get_random_images(self, folder_id, sample_size=10):
+        """Fetches up to 50 images from the specified folder and returns a random sample."""
         query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
         results = self.service.files().list(
             q=query,
-            pageSize=1,
+            pageSize=50, # Fetch more to allow random selection
             fields="nextPageToken, files(id, name, mimeType)",
-            orderBy="createdTime asc"
+            orderBy="createdTime desc" # get relatively fresh ones
         ).execute()
         
         items = results.get('files', [])
         if not items:
-            return None
-        return items[0]
+            return []
+            
+        # Select random sample
+        sample_size = min(sample_size, len(items))
+        return random.sample(items, sample_size)
 
     def download_image(self, file_id, file_name, download_path="downloads"):
         """Downloads the image to the local file system."""
@@ -73,3 +76,40 @@ class DriveService:
             fields='id, parents'
         ).execute()
         return True
+
+    def read_state(self, folder_id):
+        """Reads the state.json file from the specified Drive folder."""
+        query = f"'{folder_id}' in parents and name='state.json' and trashed=false"
+        results = self.service.files().list(q=query, fields="files(id)").execute()
+        items = results.get('files', [])
+        
+        if not items:
+            return {"recent_categories": []}
+            
+        file_id = items[0]['id']
+        request = self.service.files().get_media(fileId=file_id)
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+            
+        return json.loads(fh.getvalue().decode('utf-8'))
+
+    def write_state(self, folder_id, state_data):
+        """Writes the state.json file to the specified Drive folder."""
+        query = f"'{folder_id}' in parents and name='state.json' and trashed=false"
+        results = self.service.files().list(q=query, fields="files(id)").execute()
+        items = results.get('files', [])
+        
+        file_metadata = {'name': 'state.json', 'mimeType': 'application/json'}
+        media = MediaIoBaseUpload(io.BytesIO(json.dumps(state_data).encode('utf-8')), mimetype='application/json', resumable=True)
+        
+        if not items:
+            # Create new
+            file_metadata['parents'] = [folder_id]
+            self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        else:
+            # Update existing
+            file_id = items[0]['id']
+            self.service.files().update(fileId=file_id, media_body=media).execute()

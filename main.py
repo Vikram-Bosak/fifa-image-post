@@ -31,34 +31,40 @@ def main():
         llm_service = LLMService()
         facebook_service = FacebookService()
         
-        folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
+        source_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
         uploaded_folder_id = os.environ.get("GOOGLE_DRIVE_UPLOADED_FOLDER_ID")
         
-        if not folder_id:
+        if not source_folder_id:
             raise ValueError("GOOGLE_DRIVE_FOLDER_ID is not set.")
             
         print("Fetching an image from Google Drive...")
-        image_file = drive_service.get_one_image(folder_id)
-        
-        if not image_file:
-            print("No new images found in the specified Drive folder.")
+        # 1. Fetch random candidates from Drive
+        candidates = drive_service.get_random_images(source_folder_id, sample_size=10)
+        if not candidates:
+            print("No images found in the specified Drive folder.")
             report_data['status'] = 'Skipped'
             report_data['error'] = 'No new images found in Google Drive.'
             discord_service.send_report(report_data)
             return
             
-        file_id = image_file['id']
-        file_name = image_file['name']
+        print(f"Found {len(candidates)} candidate images.")
+        
+        # 2. Read State to enforce variety
+        state_data = drive_service.read_state(source_folder_id)
+        recent_categories = state_data.get('recent_categories', [])
+        
+        # 3. Select best image for variety using LLM
+        selected_image = llm_service.select_best_image_for_variety(candidates, recent_categories)
+        file_id = selected_image['id']
+        file_name = selected_image['name']
         report_data['file_name'] = file_name
-        print(f"Found image: {file_name}")
         
-        print("Downloading image...")
-        local_path = drive_service.download_image(file_id, file_name)
-        
+        print(f"Selected Image for Variety: {file_name}")
+
+        # 4. Generate content
         print("Generating SEO content using LLM...")
         seo_data = llm_service.generate_seo_content(file_name)
         
-        # Format the final caption for Facebook
         title = seo_data.get('title', '')
         caption = seo_data.get('caption', '')
         description = seo_data.get('description', '')
@@ -70,12 +76,11 @@ def main():
         
         final_caption = f"{title}\n\n{caption}\n\n{description}\n\n{hashtags}"
         
-        print(f"Generated Content:\n{final_caption}\n")
-        
+        # 5. Download the image
+        print("Downloading image...")
+        local_path = drive_service.download_image(file_id, file_name)
+
         # Human-like random delay
-        # The user requested 0 to 15 minutes delay before posting
-        # We can implement this directly, but in GitHub Actions, sleeping for 15 mins burns action minutes.
-        # However, the user explicitly asked for a 0 to 15 min random delay before uploading.
         delay_minutes = random.uniform(0, 15)
         delay_seconds = int(delay_minutes * 60)
         print(f"Simulating human delay... waiting for {delay_seconds} seconds ({delay_minutes:.2f} minutes).")
@@ -89,10 +94,16 @@ def main():
         report_data['public_url'] = fb_result.get('public_url', 'URL not found')
         print(f"Successfully uploaded to Facebook! Post ID: {fb_result.get('post_id')}")
         
-        # Optional: Move file in Drive so it doesn't get picked up again
+        # Move file in Drive so it doesn't get picked up again
         if uploaded_folder_id:
-            print("Moving processed file in Google Drive...")
-            drive_service.move_file(file_id, folder_id, uploaded_folder_id)
+            print("Moving processed file to 'Uploaded' folder in Google Drive...")
+            drive_service.move_file(file_id, source_folder_id, uploaded_folder_id)
+            
+        # Update state with new category (using filename as proxy for category)
+        recent_categories.insert(0, file_name.split('.')[0])
+        state_data['recent_categories'] = recent_categories[:5] # keep last 5
+        drive_service.write_state(source_folder_id, state_data)
+        print("Updated state.json with recent categories.")
             
         # Clean up local file
         if os.path.exists(local_path):
