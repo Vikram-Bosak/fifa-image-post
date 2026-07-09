@@ -80,11 +80,16 @@ def main():
         print("Downloading image...")
         local_path = drive_service.download_image(file_id, file_name)
 
-        # Human-like random delay
-        delay_minutes = random.uniform(0, 15)
-        delay_seconds = int(delay_minutes * 60)
-        print(f"Simulating human delay... waiting for {delay_seconds} seconds ({delay_minutes:.2f} minutes).")
-        time.sleep(delay_seconds)
+        # Human-like random delay (Only if PRODUCTION_MODE is true)
+        is_production = os.environ.get("PRODUCTION_MODE", "false").lower() == "true"
+        
+        if is_production:
+            delay_minutes = random.uniform(0, 15)
+            delay_seconds = int(delay_minutes * 60)
+            print(f"Production Mode ON: Simulating human delay... waiting for {delay_seconds} seconds ({delay_minutes:.2f} minutes).")
+            time.sleep(delay_seconds)
+        else:
+            print("Production Mode OFF: Skipping random delay for testing.")
         
         print("Uploading to Facebook...")
         # Update upload time after sleep
