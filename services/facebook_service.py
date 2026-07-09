@@ -11,6 +11,30 @@ class FacebookService:
             
         self.api_version = "v19.0" # Use a recent stable Graph API version
         self.base_url = f"https://graph.facebook.com/{self.api_version}/{self.page_id}/photos"
+        
+        # Automatically resolve Page Access Token if a User Token was provided
+        self.access_token = self._get_page_access_token(self.access_token, self.page_id)
+
+    def _get_page_access_token(self, user_token, page_id):
+        """
+        Queries /me/accounts to find the Page Access Token for the target Page ID.
+        If not found or query fails, returns the user_token back as a fallback.
+        """
+        url = f"https://graph.facebook.com/{self.api_version}/me/accounts?limit=100&access_token={user_token}"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json().get('data', [])
+                for page in data:
+                    if str(page.get('id')) == str(page_id):
+                        print(f"Successfully resolved Page Access Token for page: {page.get('name')} ({page_id})")
+                        return page.get('access_token')
+                print(f"Target Page ID {page_id} not found in user accounts. Falling back to provided token.")
+            else:
+                print(f"Failed to query /me/accounts (status {response.status_code}). Falling back to provided token.")
+        except Exception as e:
+            print(f"Error resolving Page Access Token: {e}. Falling back to provided token.")
+        return user_token
 
     def upload_photo(self, image_path: str, caption_text: str) -> dict:
         """
