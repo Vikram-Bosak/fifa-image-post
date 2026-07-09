@@ -29,9 +29,11 @@ class DiscordService:
         repo_url = f"https://github.com/{github_repository}"
         run_url = f"{repo_url}/actions/runs/{github_run_id}" if github_run_id else repo_url
         
+        status_emoji = "✅" if is_success else "❌"
+        
         # Build the message content based on the template
-        message_content = f"✅ Pipeline Run Completed\n\n"
-        message_content += f"🎬 Image Name:\n{title}\n\n"
+        message_content = f"{status_emoji} Pipeline Run {'Completed' if is_success else status}\n\n"
+        message_content += f"🎬 Photo Name:\n{title}\n\n"
         
         message_content += f"📤 Facebook Upload Status: {status}\n\n"
         
@@ -39,7 +41,7 @@ class DiscordService:
             message_content += f"🏷️ SEO Title:\n{title}\n\n"
             message_content += f"📝 Description:\n{caption}\n\n{hashtags}\n\n"
             message_content += f"Original File: {file_name}\n\n"
-            message_content += f"🔗 Facebook Post URL:\n{public_url}\n\n"
+            message_content += f"🔗 Facebook Photo Post URL:\n{public_url}\n\n"
         else:
             message_content += f"❌ Error Details:\n{report_data.get('error', 'Unknown Error')}\n\n"
             
