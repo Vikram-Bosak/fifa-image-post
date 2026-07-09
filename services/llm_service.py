@@ -25,14 +25,19 @@ class LLMService:
         prompt = f"""
         You are an expert Social Media Manager and SEO Specialist for Facebook.
         I am going to post a photo. The original file name of the photo is "{subject}".
-        Based on this subject, please generate highly engaging, SEO-optimized content for a Facebook post.
+        Based strictly on this subject, please generate highly engaging, SEO-optimized content for a Facebook post.
+        
+        CRITICAL RULES:
+        1. The generated title, caption, description, and hashtags MUST be entirely relevant to the subject: "{subject}".
+        2. Do NOT use any unrelated keywords or hashtags.
+        3. Keep the context accurate and aligned with what the filename suggests.
         
         Provide the response strictly in the following JSON format:
         {{
-            "title": "An engaging, click-worthy short title",
-            "caption": "A compelling Facebook caption (2-3 sentences) with emojis, designed to encourage engagement and sharing",
-            "description": "A slightly longer description providing context or a story related to the subject",
-            "hashtags": "#hashtag1 #hashtag2 #hashtag3 (provide 5-8 relevant, trending hashtags)"
+            "title": "An engaging, click-worthy short title about {subject}",
+            "caption": "A compelling Facebook caption (2-3 sentences) with emojis, strictly related to {subject}",
+            "description": "A slightly longer description providing context or a story related to {subject}",
+            "hashtags": "#hashtag1 #hashtag2 #hashtag3 (provide 5-8 strictly relevant, trending hashtags)"
         }}
         
         Ensure the output is valid JSON and nothing else. Do not wrap in ```json blocks.
@@ -61,11 +66,11 @@ class LLMService:
             return json.loads(text.strip())
         except Exception as e:
             print(f"Error generating LLM content: {e}")
-            # Fallback content
+            # Dynamic Fallback content based on subject
             return {
-                "title": f"Amazing FIFA Moment",
-                "caption": f"Enjoy this incredible FIFA gameplay moment! Watch the full action unfold. ⚽🔥\n\n#FIFA #Gaming #Football #Soccer",
-                "hashtags": "#FIFA #Gaming #Football"
+                "title": f"Amazing {subject.title()}",
+                "caption": f"Check out this incredible view of {subject}! What are your thoughts? Let us know below! ✨👇\n\n#{subject.replace(' ', '')}",
+                "hashtags": f"#{subject.replace(' ', '')} #trending #viral"
             }
 
     def select_best_image_for_variety(self, candidates, recent_categories):
