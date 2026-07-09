@@ -29,7 +29,7 @@ class DriveService:
 
     def get_random_images(self, folder_id, sample_size=10):
         """Fetches up to 50 images from the specified folder and returns a random sample."""
-        query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed=false"
+        query = f"'{folder_id}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed=false"
         results = self.service.files().list(
             q=query,
             pageSize=50, # Fetch more to allow random selection

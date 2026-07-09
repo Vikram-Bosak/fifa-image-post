@@ -8,6 +8,7 @@ from services.drive_service import DriveService
 from services.llm_service import LLMService
 from services.facebook_service import FacebookService
 from services.discord_service import DiscordService
+from services.content_safety_service import ContentSafetyService
 
 def main():
     # Load environment variables for local testing
@@ -30,6 +31,7 @@ def main():
         drive_service = DriveService()
         llm_service = LLMService()
         facebook_service = FacebookService()
+        safety_service = ContentSafetyService()
         
         source_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
         uploaded_folder_id = os.environ.get("GOOGLE_DRIVE_UPLOADED_FOLDER_ID")
@@ -76,9 +78,26 @@ def main():
         
         final_caption = f"{title}\n\n{caption}\n\n{description}\n\n{hashtags}"
         
-        # 5. Download the image
-        print("Downloading image...")
+        # Sanitize final caption using the safety service
+        final_caption = safety_service.sanitize_text(final_caption)
+        
+        # 5. Download the media
+        print("Downloading media...")
         local_path = drive_service.download_image(file_id, file_name)
+        
+        is_video = file_name.lower().endswith(('.mp4', '.mov', '.avi', '.mkv'))
+        
+        # 6. Safety Checks and Modification (For Videos)
+        if is_video:
+            safe_local_path = local_path.replace('.', '_safe.')
+            success = safety_service.make_video_safe(local_path, safe_local_path)
+            if success:
+                # Replace the original local path with the safe one
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+                local_path = safe_local_path
+            else:
+                print("Warning: Could not make video safe. Proceeding with original... (High Risk)")
 
         # Human-like random delay (Only if PRODUCTION_MODE is true)
         is_production = os.environ.get("PRODUCTION_MODE", "false").lower() == "true"
@@ -94,10 +113,15 @@ def main():
         print("Uploading to Facebook...")
         # Update upload time after sleep
         report_data['upload_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        fb_result = facebook_service.upload_photo(local_path, final_caption)
+        
+        if is_video:
+            fb_result = facebook_service.upload_reel(local_path, final_caption)
+            print(f"Successfully uploaded video to Facebook Reels! Video ID: {fb_result.get('id')}")
+        else:
+            fb_result = facebook_service.upload_photo(local_path, final_caption)
+            print(f"Successfully uploaded photo to Facebook! Post ID: {fb_result.get('post_id')}")
         
         report_data['public_url'] = fb_result.get('public_url', 'URL not found')
-        print(f"Successfully uploaded to Facebook! Post ID: {fb_result.get('post_id')}")
         
         # Move file in Drive so it doesn't get picked up again
         if uploaded_folder_id:

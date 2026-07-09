@@ -36,6 +36,81 @@ class FacebookService:
             print(f"Error resolving Page Access Token: {e}. Falling back to provided token.")
         return user_token
 
+    def _handle_api_error(self, response, step_name):
+        if response.status_code >= 400:
+            try:
+                err_data = response.json()
+                error_info = err_data.get('error', {})
+                err_msg = error_info.get('message')
+                err_code = error_info.get('code', 'unknown')
+                err_subcode = error_info.get('error_subcode', 'unknown')
+                if err_msg:
+                    raise Exception(f"Facebook API Error ({step_name}): {err_msg} (code: {err_code}, subcode: {err_subcode})")
+            except Exception as e:
+                if "Facebook API Error" in str(e):
+                    raise
+            response.raise_for_status()
+
+    def upload_reel(self, video_path: str, caption_text: str) -> dict:
+        """
+        Uploads a video to Facebook Reels using the multi-step Graph API process.
+        """
+        file_size = os.path.getsize(video_path)
+        
+        # Step 1: Initialize Upload
+        init_url = f"https://graph.facebook.com/{self.api_version}/{self.page_id}/video_reels"
+        init_payload = {
+            'access_token': self.access_token,
+            'upload_phase': 'start',
+            'file_size': file_size
+        }
+        
+        init_response = requests.post(init_url, data=init_payload)
+        self._handle_api_error(init_response, "Initialize Upload")
+        init_data = init_response.json()
+        
+        video_id = init_data.get('video_id')
+        upload_url = init_data.get('upload_url')
+        
+        if not video_id or not upload_url:
+            raise Exception("Failed to initialize Facebook upload session.")
+
+        # Step 2: Upload Video Data
+        headers = {
+            'Authorization': f'OAuth {self.access_token}',
+            'offset': '0',
+            'file_size': str(file_size)
+        }
+        
+        with open(video_path, 'rb') as f:
+            video_data = f.read()
+            
+        upload_response = requests.post(upload_url, headers=headers, data=video_data)
+        self._handle_api_error(upload_response, "Upload Video Data")
+        
+        # Step 3: Publish Video
+        publish_url = f"https://graph.facebook.com/{self.api_version}/{self.page_id}/video_reels"
+        publish_payload = {
+            'access_token': self.access_token,
+            'upload_phase': 'finish',
+            'video_id': video_id,
+            'video_state': 'PUBLISHED',
+            'description': caption_text
+        }
+        
+        publish_response = requests.post(publish_url, data=publish_payload)
+        self._handle_api_error(publish_response, "Publish Video")
+        publish_data = publish_response.json()
+        
+        if publish_data.get('success'):
+            return {
+                'id': video_id,
+                'post_id': video_id,
+                'public_url': f"https://www.facebook.com/{self.page_id}/videos/{video_id}"
+            }
+        else:
+            raise Exception(f"Failed to publish reel: {publish_data}")
+
     def upload_photo(self, image_path: str, caption_text: str) -> dict:
         """
         Uploads a photo to the Facebook Page with the generated caption.
