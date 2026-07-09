@@ -32,17 +32,15 @@ class FacebookService:
             
             if response.status_code == 200:
                 result = response.json()
-                post_id = result.get('post_id')
+                post_id = result.get('post_id') or result.get('id')
                 
-                # Try to construct the public URL for the post
-                # The post_id is typically in the format page_id_post_id
                 public_url = ""
                 if post_id:
-                    parts = post_id.split('_')
-                    if len(parts) == 2:
+                    if '_' in post_id:
+                        parts = post_id.split('_')
                         public_url = f"https://www.facebook.com/{parts[0]}/posts/{parts[1]}"
                     else:
-                        public_url = f"https://www.facebook.com/{post_id}"
+                        public_url = f"https://www.facebook.com/{self.page_id}/posts/{post_id}"
                 
                 result['public_url'] = public_url
                 return result
