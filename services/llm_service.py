@@ -31,6 +31,8 @@ class LLMService:
         1. The generated title, caption, description, and hashtags MUST be entirely relevant to the subject: "{subject}".
         2. Do NOT use any unrelated keywords or hashtags.
         3. Keep the context accurate and aligned with what the filename suggests.
+        4. ANTI-SPAM POLICY: NEVER use clickbait or engagement-bait phrases (e.g., "Share this", "Tag a friend", "Click here", "Shocking", "Viral").
+        5. The content MUST be completely safe, Policy-compliant, and avoid any misleading statements.
         
         Provide the response strictly in the following JSON format:
         {{

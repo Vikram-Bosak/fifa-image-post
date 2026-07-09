@@ -87,17 +87,20 @@ def main():
         
         is_video = file_name.lower().endswith(('.mp4', '.mov', '.avi', '.mkv'))
         
-        # 6. Safety Checks and Modification (For Videos)
+        # 6. Safety Checks and Modification
+        safe_local_path = local_path.replace('.', '_safe.')
         if is_video:
-            safe_local_path = local_path.replace('.', '_safe.')
             success = safety_service.make_video_safe(local_path, safe_local_path)
-            if success:
-                # Replace the original local path with the safe one
-                if os.path.exists(local_path):
-                    os.remove(local_path)
-                local_path = safe_local_path
-            else:
-                print("Warning: Could not make video safe. Proceeding with original... (High Risk)")
+        else:
+            success = safety_service.make_image_safe(local_path, safe_local_path)
+            
+        if success:
+            # Replace the original local path with the safe one
+            if os.path.exists(local_path):
+                os.remove(local_path)
+            local_path = safe_local_path
+        else:
+            print("Warning: Could not make media safe. Proceeding with original... (High Risk)")
 
         # Human-like random delay (Only if PRODUCTION_MODE is true)
         is_production = os.environ.get("PRODUCTION_MODE", "false").lower() == "true"

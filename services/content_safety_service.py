@@ -66,3 +66,43 @@ class ContentSafetyService:
         except Exception as e:
             print(f"Failed to modify video safely: {e}")
             return False
+
+    def make_image_safe(self, input_path: str, output_path: str) -> bool:
+        """
+        Modifies an image using Pillow to avoid automated copyright claims.
+        Techniques:
+        1. Strip all EXIF metadata (done automatically when saving new PIL Image without exif info).
+        2. Minor crop (1%) to alter the visual hash.
+        """
+        try:
+            from PIL import Image
+            
+            if not os.path.exists(input_path):
+                print(f"Error: Image file {input_path} not found.")
+                return False
+                
+            print(f"Applying safety modifications to image {input_path}...")
+            
+            with Image.open(input_path) as img:
+                # Convert to RGB if it's RGBA (to avoid issues when saving as JPEG if needed, though we can keep original format)
+                if img.mode in ('RGBA', 'P'):
+                    img = img.convert('RGB')
+                    
+                width, height = img.size
+                
+                # Calculate 1% crop
+                crop_w = int(width * 0.01)
+                crop_h = int(height * 0.01)
+                
+                # Box is (left, upper, right, lower)
+                box = (crop_w, crop_h, width - crop_w, height - crop_h)
+                cropped_img = img.crop(box)
+                
+                # Save without EXIF data (PIL automatically drops EXIF unless explicitly saved)
+                cropped_img.save(output_path, quality=95)
+                
+            print(f"Safe image generated at {output_path}")
+            return True
+        except Exception as e:
+            print(f"Failed to modify image safely: {e}")
+            return False
