@@ -143,3 +143,28 @@ class DriveService:
         except Exception as e:
             print(f"Error uploading file to Drive: {e}")
             return False
+
+    def get_or_create_folder(self, folder_name: str, parent_folder_id: str) -> str:
+        """Finds a folder by name inside parent_folder_id. If not found, creates it. Returns folder ID."""
+        query = f"'{parent_folder_id}' in parents and name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = self.service.files().list(q=query, fields="files(id, name)").execute()
+        items = results.get('files', [])
+        
+        if items:
+            print(f"Found existing '{folder_name}' folder (ID: {items[0]['id']})")
+            return items[0]['id']
+            
+        print(f"Creating new '{folder_name}' folder...")
+        file_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [parent_folder_id]
+        }
+        
+        try:
+            folder = self.service.files().create(body=file_metadata, fields='id').execute()
+            print(f"Created folder with ID: {folder.get('id')}")
+            return folder.get('id')
+        except Exception as e:
+            print(f"Failed to create folder: {e}")
+            return None

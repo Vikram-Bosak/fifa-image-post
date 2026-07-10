@@ -151,13 +151,19 @@ def main():
         report_data['error'] = error_msg
         
         # Action Taken for failed upload
-        failed_folder_id = os.environ.get("GOOGLE_DRIVE_FAILED_FOLDER_ID")
-        if failed_folder_id and report_data.get('file_name') != 'N/A' and 'file_id' in locals() and 'local_path' in locals():
+        if report_data.get('file_name') != 'N/A' and 'file_id' in locals() and 'local_path' in locals() and 'source_folder_id' in locals():
             print("Handling failed upload...")
-            try:
-                # 1. Create .txt file with metadata
-                base_name = os.path.splitext(report_data['file_name'])[0]
-                txt_filename = f"{base_name}.txt"
+            
+            # Try to get folder from env, else create/get 'Failed Uploads' inside source folder
+            failed_folder_id = os.environ.get("GOOGLE_DRIVE_FAILED_FOLDER_ID")
+            if not failed_folder_id:
+                failed_folder_id = drive_service.get_or_create_folder("Failed Uploads", source_folder_id)
+                
+            if failed_folder_id:
+                try:
+                    # 1. Create .txt file with metadata
+                    base_name = os.path.splitext(report_data['file_name'])[0]
+                    txt_filename = f"{base_name}.txt"
                 txt_path = os.path.join(os.path.dirname(local_path), txt_filename)
                 
                 with open(txt_path, 'w', encoding='utf-8') as f:
