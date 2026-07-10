@@ -186,9 +186,9 @@ def main():
                     # Cleanup .txt locally
                     if os.path.exists(txt_path):
                         os.remove(txt_path)
-            except Exception as cleanup_error:
-                report_data['failed_action_taken'] = f"Attempted to move failed file, but encountered error: {cleanup_error}"
-                print(report_data['failed_action_taken'])
+                except Exception as cleanup_error:
+                    report_data['failed_action_taken'] = f"Attempted to move failed file, but encountered error: {cleanup_error}"
+                    print(report_data['failed_action_taken'])
         
     finally:
         # Always send the report at the end
