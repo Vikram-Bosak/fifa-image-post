@@ -164,7 +164,7 @@ def main():
                     # 1. Create .txt file with metadata
                     base_name = os.path.splitext(report_data['file_name'])[0]
                     txt_filename = f"{base_name}.txt"
-                txt_path = os.path.join(os.path.dirname(local_path), txt_filename)
+                    txt_path = os.path.join(os.path.dirname(local_path), txt_filename)
                 
                 with open(txt_path, 'w', encoding='utf-8') as f:
                     f.write(f"Title: {report_data.get('title')}\n")
