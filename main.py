@@ -150,6 +150,40 @@ def main():
         report_data['status'] = 'Error'
         report_data['error'] = error_msg
         
+        # Action Taken for failed upload
+        failed_folder_id = os.environ.get("GOOGLE_DRIVE_FAILED_FOLDER_ID")
+        if failed_folder_id and report_data.get('file_name') != 'N/A' and 'file_id' in locals() and 'local_path' in locals():
+            print("Handling failed upload...")
+            try:
+                # 1. Create .txt file with metadata
+                base_name = os.path.splitext(report_data['file_name'])[0]
+                txt_filename = f"{base_name}.txt"
+                txt_path = os.path.join(os.path.dirname(local_path), txt_filename)
+                
+                with open(txt_path, 'w', encoding='utf-8') as f:
+                    f.write(f"Title: {report_data.get('title')}\n")
+                    f.write(f"Caption: {report_data.get('caption')}\n")
+                    f.write(f"Hashtags: {report_data.get('hashtags')}\n")
+                    f.write(f"Upload Time: {report_data.get('upload_time')}\n")
+                    f.write(f"Facebook Page Name: {os.environ.get('FACEBOOK_PAGE_ID')}\n")
+                    f.write(f"Error Message: {error_msg}\n")
+                
+                # 2. Upload .txt to Failed Folder
+                drive_service.upload_file(txt_path, failed_folder_id, mime_type='text/plain')
+                
+                # 3. Move original image to Failed Folder
+                drive_service.move_file(file_id, source_folder_id, failed_folder_id)
+                
+                report_data['failed_action_taken'] = f"Image and Metadata ({txt_filename}) successfully moved to the 'Failed Uploads' folder."
+                print(report_data['failed_action_taken'])
+                
+                # Cleanup .txt locally
+                if os.path.exists(txt_path):
+                    os.remove(txt_path)
+            except Exception as cleanup_error:
+                report_data['failed_action_taken'] = f"Attempted to move failed file, but encountered error: {cleanup_error}"
+                print(report_data['failed_action_taken'])
+        
     finally:
         # Always send the report at the end
         print("Sending Discord report...")

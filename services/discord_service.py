@@ -48,6 +48,9 @@ class DiscordService:
             
         if not is_success:
             message_content += f"❌ Error Details:\n{report_data.get('error', 'Unknown Error')}\n\n"
+            failed_action = report_data.get('failed_action_taken')
+            if failed_action:
+                message_content += f"📁 Action Taken:\n{failed_action}\n\n"
             
         message_content += f"📦 GitHub Repository:\n{repo_url}\n\n"
         message_content += f"📄 Workflow Run:\n{run_url}"

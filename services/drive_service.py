@@ -120,3 +120,26 @@ class DriveService:
                 self.service.files().update(fileId=file_id, media_body=media).execute()
         except Exception as e:
             print(f"Warning: Failed to write state.json (Service Account Quota issue?): {e}")
+
+    def upload_file(self, local_path: str, folder_id: str, mime_type: str = 'text/plain') -> bool:
+        """Uploads a local file to the specified Google Drive folder."""
+        if not os.path.exists(local_path):
+            print(f"Error: File {local_path} not found.")
+            return False
+            
+        file_name = os.path.basename(local_path)
+        file_metadata = {
+            'name': file_name,
+            'parents': [folder_id]
+        }
+        
+        from googleapiclient.http import MediaFileUpload
+        media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
+        
+        try:
+            print(f"Uploading {file_name} to Drive folder {folder_id}...")
+            self.service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+            return True
+        except Exception as e:
+            print(f"Error uploading file to Drive: {e}")
+            return False
