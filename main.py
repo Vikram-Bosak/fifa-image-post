@@ -63,29 +63,26 @@ def main():
         
         print(f"Selected Image for Variety: {file_name}")
 
-        # 4. Generate content
-        print("Generating SEO content using LLM...")
-        seo_data = llm_service.generate_seo_content(file_name)
-        
-        title = seo_data.get('title', '')
-        caption = seo_data.get('caption', '')
-        description = seo_data.get('description', '')
-        hashtags = seo_data.get('hashtags', '')
-        
-        report_data['title'] = title
-        report_data['caption'] = caption
-        report_data['hashtags'] = hashtags
-        
-        final_caption = f"{title}\n\n{caption}\n\n{description}\n\n{hashtags}"
-        
-        # Sanitize final caption using the safety service
-        final_caption = safety_service.sanitize_text(final_caption)
-        
-        # 5. Download the media
+        # 4. Download the media FIRST
         print("Downloading media...")
         local_path = drive_service.download_image(file_id, file_name)
         
         is_video = file_name.lower().endswith(('.mp4', '.mov', '.avi', '.mkv'))
+
+        # 5. Generate content using Image Analysis
+        print("Generating SEO content using LLM Vision...")
+        seo_data = llm_service.generate_seo_content(local_path, is_video)
+        
+        title = seo_data.get('title', '')
+        
+        report_data['title'] = title
+        report_data['caption'] = 'N/A'
+        report_data['hashtags'] = 'N/A'
+        
+        final_caption = title
+        
+        # Sanitize final caption using the safety service
+        final_caption = safety_service.sanitize_text(final_caption)
         
         # 6. Safety Checks and Modification
         safe_local_path = local_path.replace('.', '_safe.')
